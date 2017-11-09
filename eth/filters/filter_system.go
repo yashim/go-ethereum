@@ -332,6 +332,10 @@ func (es *EventSystem) broadcast(filters filterIndex, ev interface{}) {
 				}
 			})
 		}
+	case core.ChainSideEvent:
+		for _, f := range filters[BlocksSubscription] {
+			f.headers <- e.Block.Header()
+		}
 	}
 }
 
@@ -409,6 +413,9 @@ func (es *EventSystem) eventLoop() {
 		// Subscribe ChainEvent
 		chainEvCh  = make(chan core.ChainEvent, chainEvChanSize)
 		chainEvSub = es.backend.SubscribeChainEvent(chainEvCh)
+
+		chainSideEvCh  = make(chan core.ChainSideEvent, chainEvChanSize)
+		chainSideEvSub = es.backend.SubscribeChainSideEvent(chainSideEvCh)
 	)
 
 	// Unsubscribe all events
@@ -417,6 +424,7 @@ func (es *EventSystem) eventLoop() {
 	defer rmLogsSub.Unsubscribe()
 	defer logsSub.Unsubscribe()
 	defer chainEvSub.Unsubscribe()
+	defer chainSideEvSub.Unsubscribe()
 
 	for i := UnknownSubscription; i < LastIndexSubscription; i++ {
 		index[i] = make(map[rpc.ID]*subscription)
@@ -438,6 +446,8 @@ func (es *EventSystem) eventLoop() {
 		case ev := <-logsCh:
 			es.broadcast(index, ev)
 		case ev := <-chainEvCh:
+			es.broadcast(index, ev)
+		case ev := <-chainSideEvCh:
 			es.broadcast(index, ev)
 
 		case f := <-es.install:

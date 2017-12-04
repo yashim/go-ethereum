@@ -378,7 +378,7 @@ func (self *syncer) syncHistory(state *syncState) chan interface{} {
 				}
 				select {
 				// blocking until history channel is read from
-				case history <- key:
+				case history <- storage.Key(key):
 					n++
 					log.Trace(fmt.Sprintf("syncer[%v]: history: %v (%v keys)", self.key.Log(), key.Log(), n))
 					state.Latest = key

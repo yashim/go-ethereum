@@ -135,9 +135,6 @@ type Config struct {
 	// *WARNING* Only set this if the node is running in a trusted network, exposing
 	// private APIs to untrusted users is a major security risk.
 	WSExposeAll bool `toml:",omitempty"`
-
-	// Logger is a custom logger to use with the p2p.Server.
-	Logger log.Logger
 }
 
 // IPCEndpoint resolves an IPC endpoint based on a configured value, taking into
@@ -363,43 +360,35 @@ func (c *Config) parsePersistentNodes(path string) []*discover.Node {
 	return nodes
 }
 
-// AccountConfig determines the settings for scrypt and keydirectory
-func (c *Config) AccountConfig() (int, int, string, error) {
+func makeAccountManager(conf *Config) (*accounts.Manager, string, error) {
 	scryptN := keystore.StandardScryptN
 	scryptP := keystore.StandardScryptP
-	if c.UseLightweightKDF {
+	if conf.UseLightweightKDF {
 		scryptN = keystore.LightScryptN
 		scryptP = keystore.LightScryptP
 	}
 
 	var (
-		keydir string
-		err    error
+		keydir    string
+		ephemeral string
+		err       error
 	)
 	switch {
-	case filepath.IsAbs(c.KeyStoreDir):
-		keydir = c.KeyStoreDir
-	case c.DataDir != "":
-		if c.KeyStoreDir == "" {
-			keydir = filepath.Join(c.DataDir, datadirDefaultKeyStore)
+	case filepath.IsAbs(conf.KeyStoreDir):
+		keydir = conf.KeyStoreDir
+	case conf.DataDir != "":
+		if conf.KeyStoreDir == "" {
+			keydir = filepath.Join(conf.DataDir, datadirDefaultKeyStore)
 		} else {
-			keydir, err = filepath.Abs(c.KeyStoreDir)
+			keydir, err = filepath.Abs(conf.KeyStoreDir)
 		}
-	case c.KeyStoreDir != "":
-		keydir, err = filepath.Abs(c.KeyStoreDir)
-	}
-	return scryptN, scryptP, keydir, err
-}
-
-func makeAccountManager(conf *Config) (*accounts.Manager, string, error) {
-	scryptN, scryptP, keydir, err := conf.AccountConfig()
-	var ephemeral string
-	if keydir == "" {
+	case conf.KeyStoreDir != "":
+		keydir, err = filepath.Abs(conf.KeyStoreDir)
+	default:
 		// There is no datadir.
 		keydir, err = ioutil.TempDir("", "go-ethereum-keystore")
 		ephemeral = keydir
 	}
-
 	if err != nil {
 		return nil, "", err
 	}

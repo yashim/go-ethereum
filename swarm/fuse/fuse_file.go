@@ -19,16 +19,15 @@
 package fuse
 
 import (
-	"errors"
-	"io"
-	"os"
-	"sync"
-
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
+	"errors"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/swarm/storage"
 	"golang.org/x/net/context"
+	"io"
+	"os"
+	"sync"
 )
 
 const (
@@ -88,7 +87,7 @@ func (file *SwarmFile) Attr(ctx context.Context, a *fuse.Attr) error {
 		if err != nil {
 			log.Warn("Couldnt get size of file %s : %v", file.path, err)
 		}
-		file.fileSize = size
+		file.fileSize = int64(size)
 	}
 	a.Size = uint64(file.fileSize)
 	return nil

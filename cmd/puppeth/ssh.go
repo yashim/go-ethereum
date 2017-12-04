@@ -27,6 +27,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/ethereum/go-ethereum/log"
 	"golang.org/x/crypto/ssh"
@@ -77,25 +78,14 @@ func dial(server string, pubkey []byte) (*sshClient, error) {
 	} else {
 		key, err := ssh.ParsePrivateKey(buf)
 		if err != nil {
-			fmt.Printf("What's the decryption password for %s? (won't be echoed)\n>", path)
-			blob, err := terminal.ReadPassword(int(os.Stdin.Fd()))
-			fmt.Println()
-			if err != nil {
-				log.Warn("Couldn't read password", "err", err)
-			}
-			key, err := ssh.ParsePrivateKeyWithPassphrase(buf, blob)
-			if err != nil {
-				log.Warn("Failed to decrypt SSH key, falling back to passwords", "path", path, "err", err)
-			} else {
-				auths = append(auths, ssh.PublicKeys(key))
-			}
+			log.Warn("Bad SSH key, falling back to passwords", "path", path, "err", err)
 		} else {
 			auths = append(auths, ssh.PublicKeys(key))
 		}
 	}
 	auths = append(auths, ssh.PasswordCallback(func() (string, error) {
 		fmt.Printf("What's the login password for %s at %s? (won't be echoed)\n> ", login, server)
-		blob, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+		blob, err := terminal.ReadPassword(int(syscall.Stdin))
 
 		fmt.Println()
 		return string(blob), err
@@ -116,7 +106,6 @@ func dial(server string, pubkey []byte) (*sshClient, error) {
 	keycheck := func(hostname string, remote net.Addr, key ssh.PublicKey) error {
 		// If no public key is known for SSH, ask the user to confirm
 		if pubkey == nil {
-			fmt.Println()
 			fmt.Printf("The authenticity of host '%s (%s)' can't be established.\n", hostname, remote)
 			fmt.Printf("SSH key fingerprint is %s [MD5]\n", ssh.FingerprintLegacyMD5(key))
 			fmt.Printf("Are you sure you want to continue connecting (yes/no)? ")
@@ -216,8 +205,8 @@ func (client *sshClient) Stream(cmd string) error {
 	return session.Run(cmd)
 }
 
-// Upload copies the set of files to a remote server via SCP, creating any non-
-// existing folders in the mean time.
+// Upload copied the set of files to a remote server via SCP, creating any non-
+// existing folder in te mean time.
 func (client *sshClient) Upload(files map[string][]byte) ([]byte, error) {
 	// Establish a single command session
 	session, err := client.client.NewSession()
